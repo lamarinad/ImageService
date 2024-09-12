@@ -11,16 +11,18 @@ import (
 )
 
 type imageConvertor struct {
-	imageDir string
-	chDone   chan struct{}
+	imageDir   string
+	frequencyS int
+
+	chDone chan struct{}
 }
 
-func NewImageConvertor(imageDir string) Worker {
-	return &imageConvertor{imageDir: imageDir, chDone: make(chan struct{})}
+func NewImageConvertor(imageDir string, frequencyS int) Worker {
+	return &imageConvertor{imageDir: imageDir, frequencyS: frequencyS, chDone: make(chan struct{})}
 }
 
 func (ic *imageConvertor) Start(ctx context.Context) error {
-	ticker := time.NewTicker(10 * time.Minute)
+	ticker := time.NewTicker(time.Duration(ic.frequencyS) * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -35,16 +37,14 @@ func (ic *imageConvertor) Start(ctx context.Context) error {
 	}
 }
 
-// Stop TODO add better graceful worker shutdown
 func (ic *imageConvertor) Stop() error {
-	ic.chDone <- struct{}{}
-	ic.chDone <- struct{}{}
+	close(ic.chDone)
+
 	return nil
 }
 
 func (ic *imageConvertor) convertImages() {
 	// рекурсивно проходит по всем файлам и папкам в директории imageDir
-
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
