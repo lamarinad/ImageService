@@ -3,9 +3,10 @@ package api
 import (
 	"ImageService/internal/pkg/service"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -29,15 +30,31 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		return
 	}
 
-	fileContent, ok := form.Value["image"]
-	if !ok || len(fileContent) != 1 {
+	fileHeaders := form.File["image"]
+	if len(fileHeaders) != 1 {
 		c.Status(http.StatusBadRequest)
 		_ = c.Error(errInvalidImageBody)
-
 		return
 	}
 
-	name, err := h.imageSVC.Upload([]byte(fileContent[0]))
+	// Загружаем файл
+	file, err := fileHeaders[0].Open()
+	if err != nil {
+		slog.Log(c, slog.LevelError, err.Error())
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	fileContent := make([]byte, fileHeaders[0].Size)
+	_, err = file.Read(fileContent)
+	if err != nil {
+		slog.Log(c, slog.LevelError, err.Error())
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	name, err := h.imageSVC.Upload(fileContent)
 	if err != nil {
 		slog.Log(c, slog.LevelError, err.Error())
 
